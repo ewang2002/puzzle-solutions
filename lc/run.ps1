@@ -1,3 +1,5 @@
+#!/usr/bin/env pwsh
+
 # Check if we have any arguments
 if ($args.Count -ne 1) {
     Write-Host "Need at least one argument."
