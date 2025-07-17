@@ -32,42 +32,75 @@ if ([string]::IsNullOrEmpty($found)) {
 $javaFiles = Get-ChildItem $found | Where-Object {$_.Extension.ToLower() -eq ".java"}
 # Find the first TS file in that directory
 $tsFiles = Get-ChildItem $found | Where-Object {$_.Extension.ToLower() -eq ".ts"}
+# Find the first JS file in that directory
+$jsFiles = Get-ChildItem $found | Where-Object {$_.Extension.ToLower() -eq ".js"}
+
+# Put the files in a list if they exist
+$fileList = @()
+$fileType = @()
+if ($javaFiles.Length -gt 0) {
+    $fileList += $javaFiles[0]
+    $fileType += "java"
+}
+
+if ($tsFiles.Length -gt 0) {
+    $fileList += $tsFiles[0]
+    $fileType += "ts"
+}
+
+if ($jsFiles.Length -gt 0) {
+    $fileList += $jsFiles[0]
+    $fileType += "js"
+}
+
 
 # Check if we have any Java or TS files
-if ($javaFiles.Length -eq 0 -and $tsFiles.Length -eq 0) {
-    Write-Host "No .java or .ts files found in the specified directory, $($found.Name)."
+if ($javaFiles.Length -eq 0 -and $tsFiles.Length -eq 0 -and $jsFiles.Length -eq 0) {
+    Write-Host "No .java or .ts or .js files found in the specified directory, $($found.Name)."
     exit 1
 }
 
 # If we have both files, ask user which one to run
 $ext = $null
-if ($javaFiles.Length -gt 0 -and $tsFiles.Length -gt 0) {
-    Write-Host "Found both Java and TypeScript solution files. Type the number corresponding to the one you want to run:"
-    Write-Host "1. Java ($($javaFiles[0].Name))"
-    Write-Host "2. TypeScript ($($tsFiles[0].Name))"
+
+if ($fileList.Length -gt 1) {
+    Write-Host "Found several different solution files. Type the number corresponding to the one you want to run:"
+    for ($i = 0; $i -lt $fileList.Length; $i++) {
+        Write-Host "$($i + 1). $($fileType[$i]) ($($fileList[$i].Name))"
+    }
 
     while ($true) {
         $choice = Read-Host "> "
-        if ($choice -eq "1") {
-            $targetFile = $javaFiles[0]
-            $ext = "java"
-            break
-        } elseif ($choice -eq "2") {
-            $targetFile = $tsFiles[0]
-            $ext = "ts"
-            break
-        } else {
-            Write-Host "Invalid choice. Please enter 1 or 2."
+        # Is this a number?
+        if (![int]::TryParse($choice, [ref]$num)) {
+            Write-Warning "Please enter a valid number."
+            continue
         }
+
+        $choice -= 1
+
+        # Is this a valid choice?
+        if ($choice -lt 0 -or $choice -ge $fileList.Length) {
+            Write-Warning "Please enter a number between 1 and $($fileList.Length)."
+            continue
+        }
+
+        $targetFile = $fileList[$choice]
+        $ext = $fileType[$choice]
+        break 
     }
 } elseif ($javaFiles.Length -gt 0) {
     # If only Java files are found, use the first one
     $targetFile = $javaFiles[0]
     $ext = "java"
-} else {
+} elseif ($tsFiles.Length -gt 0) {
     # If only TypeScript files are found, use the first one
     $targetFile = $tsFiles[0]
     $ext = "ts"
+} else {
+    # If only JavaScript files are found, use the first one
+    $targetFile = $jsFiles[0]
+    $ext = "js"
 }
 
 # If we're working with a Java file...
@@ -124,6 +157,12 @@ elseif ($ext -eq "ts") {
 
     Set-Location ..
 }
+# If we're working with a JavaScript file...
+elseif ($ext -eq "js") {
+    Set-Location $targetFile.DirectoryName
+    node $targetFile.Name
+    Set-Location ..
+} 
 else {
     Write-Host "Unsupported file type: $ext"
     exit 1
