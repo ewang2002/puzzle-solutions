@@ -1,5 +1,3 @@
-import java.util.Stack;
-
 public class Solution {
     public int maxDepth(TreeNode root) {
         return calculateHeight(root, 0);
