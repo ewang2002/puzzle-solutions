@@ -141,7 +141,7 @@ elseif ($ext -eq "ts") {
     # all target files explicitly.
 
     Get-ChildItem $targetFile.Directory | Where-Object {$_.Extension -eq ".ts"} | ForEach-Object {
-        tsc $_
+        tsc $_ --target esnext
     }
 
     # Then, run the target file in JS form
