@@ -6,28 +6,55 @@ const DIRECTIONS: [number, number][] = [
 ];
 
 function findWords(board: string[][], words: string[]): string[] {
+    const mapping = createMap(words);
     const foundWords = new Set<string>();
     for (let i = 0; i < board.length; i++) {
         for (let j = 0; j < board[0].length; j++) {
-            search(board, words, "", i, j, new Set(), foundWords);
+            search(board, words, "", i, j, new Set(), foundWords, mapping);
         }
     }
 
     return [...foundWords];
-};
-
-function prefixExists(words: string[], currWord: string): boolean {
-    return words.some(x => x.startsWith(currWord));
 }
 
-function foundWord(words: string[], currWord: string): boolean {
-    return words.some(x => x === currWord);
+type LetterNeighborType = { neighbors: { [letter: string]: LetterNeighborType }; isEnd: boolean; };
+function createMap(words: string[]): LetterNeighborType {
+	function processWord(currWord: string, map: LetterNeighborType) {
+		if (currWord.length === 0) {
+			map.isEnd = true;
+			return;
+		}
+
+		const thisLetter = currWord[0];
+		if (!(thisLetter in map.neighbors)) {
+			map.neighbors[thisLetter] = { neighbors: {}, isEnd: false };
+		}
+
+		return processWord(currWord.substring(1), map.neighbors[thisLetter]);
+	}
+
+	const map: LetterNeighborType = {
+		neighbors: {},
+		isEnd: false
+	};
+
+	for (const word of words) {
+		processWord(word, map);
+	}
+
+	return map;
 }
 
-function search(board: string[][], words: string[], currWord: string, i: number, j: number, seen: Set<string>, foundWords: Set<string>) {
+function search(board: string[][], words: string[], currWord: string, i: number, j: number, seen: Set<string>, foundWords: Set<string>, wordMap: LetterNeighborType) {
     if (i < 0 || i >= board.length || j < 0 || j >= board[0].length) {
         return;
     }
+
+    if (!(board[i][j] in wordMap.neighbors)) {
+        return;
+    }
+
+    const currLetterInfo = wordMap.neighbors[board[i][j]];
 
     const coords = `${i} ${j}`;
     if (seen.has(coords)) {
@@ -36,16 +63,13 @@ function search(board: string[][], words: string[], currWord: string, i: number,
 
     seen.add(coords);
     currWord += board[i][j];
-    if (foundWord(words, currWord)) {
+
+    if (currLetterInfo.isEnd) {
         foundWords.add(currWord);
     }
 
-    if (!prefixExists(words, currWord)) {
-        return;
-    }
-
     for (const [di, dj] of DIRECTIONS) {
-        search(board, words, currWord, i + di, j + dj, new Set(seen), foundWords);
+        search(board, words, currWord, i + di, j + dj, new Set(seen), foundWords, currLetterInfo);
     }
 }
 
