@@ -5,12 +5,15 @@
 var subsets = function (nums) {
     function generate(idx, arr, allArrays) {
         if (idx >= nums.length) {
-            allArrays.push(arr);
+            allArrays.push([...arr]);
             return;
         }
 
         // we can either take this element
-        generate(idx + 1, [...arr, nums[idx]], allArrays);
+        arr.push(nums[idx]);
+        generate(idx + 1, arr, allArrays);
+        arr.pop();
+
         // or we can ditch this element
         generate(idx + 1, arr, allArrays);
     }
