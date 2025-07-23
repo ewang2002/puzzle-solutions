@@ -10,7 +10,7 @@ function findWords(board: string[][], words: string[]): string[] {
     const foundWords = new Set<string>();
     for (let i = 0; i < board.length; i++) {
         for (let j = 0; j < board[0].length; j++) {
-            search(board, words, "", i, j, new Set(), foundWords, mapping);
+            search(board, words, "", i, j, foundWords, mapping);
         }
     }
 
@@ -27,7 +27,7 @@ function createMap(words: string[]): LetterNeighborType {
 
 		const thisLetter = currWord[0];
 		if (!(thisLetter in map.neighbors)) {
-			map.neighbors[thisLetter] = { neighbors: {}, isEnd: false };
+			map.neighbors[thisLetter] = { neighbors: {}, isEnd: false }
 		}
 
 		return processWord(currWord.substring(1), map.neighbors[thisLetter]);
@@ -45,7 +45,7 @@ function createMap(words: string[]): LetterNeighborType {
 	return map;
 }
 
-function search(board: string[][], words: string[], currWord: string, i: number, j: number, seen: Set<string>, foundWords: Set<string>, wordMap: LetterNeighborType) {
+function search(board: string[][], words: string[], currWord: string, i: number, j: number, foundWords: Set<string>, wordMap: LetterNeighborType) {
     if (i < 0 || i >= board.length || j < 0 || j >= board[0].length) {
         return;
     }
@@ -54,23 +54,29 @@ function search(board: string[][], words: string[], currWord: string, i: number,
         return;
     }
 
-    const currLetterInfo = wordMap.neighbors[board[i][j]];
-
-    const coords = `${i} ${j}`;
-    if (seen.has(coords)) {
+    if (board[i][j] === "@") {
         return;
     }
 
-    seen.add(coords);
+    const currLetterInfo = wordMap.neighbors[board[i][j]];
+
     currWord += board[i][j];
 
     if (currLetterInfo.isEnd) {
         foundWords.add(currWord);
     }
 
+    const old = board[i][j];
+
+    // Doing this is fine because as we explore a path, we keep modifying the board. HOWEVER, once we backtrack, we
+    // end up modifying each square to its original, so that after the recursive call is done, the board is back to
+    // its original state
+    board[i][j] = "@";
     for (const [di, dj] of DIRECTIONS) {
-        search(board, words, currWord, i + di, j + dj, new Set(seen), foundWords, currLetterInfo);
+        search(board, words, currWord, i + di, j + dj, foundWords, currLetterInfo);
     }
+
+    board[i][j] = old;
 }
 
 console.log(findWords([["o", "a", "a", "n"], ["e", "t", "a", "e"], ["i", "h", "k", "r"], ["i", "f", "l", "v"]], ["oath", "pea", "eat", "rain"]));
