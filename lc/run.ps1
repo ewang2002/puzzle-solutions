@@ -105,63 +105,73 @@ if ($fileList.Length -gt 1) {
 
 # If we're working with a Java file...
 if ($ext -eq "java") {
-    # Get all files from the dependencies folder
-    $depFiles = Get-ChildItem "dependencies" | Where-Object {$_.Extension -eq ".java"}
+    try {
+        # Get all files from the dependencies folder
+        $depFiles = Get-ChildItem "dependencies" | Where-Object {$_.Extension -eq ".java"}
 
-    # Copy these files to the target file's directory, making a note of their names
-    $depNames = @()
-    foreach ($f in $depFiles) {
-        $fullPath = "$($targetFile.Directory)/$($f.Name)"
-        Copy-Item $f.FullName $fullPath
-        $depNames += $fullPath
+        # Copy these files to the target file's directory, making a note of their names
+        $depNames = @()
+        foreach ($f in $depFiles) {
+            $fullPath = "$($targetFile.Directory)/$($f.Name)"
+            Copy-Item $f.FullName $fullPath
+            $depNames += $fullPath
+        }
+
+        javac "$($targetFile.DirectoryName)/*.java"
+        Set-Location $targetFile.DirectoryName
+        java $targetFile.Name.Split('.')[0]
     }
+    finally {
+        Set-Location ..
 
-    javac "$($targetFile.DirectoryName)/*.java"
-    Set-Location $targetFile.DirectoryName
-    java $targetFile.Name.Split('.')[0]
-    Set-Location ..
+        # After 1 second, delete all class files in case something in the background is still using them
+        Start-Sleep -Seconds 1
+        $files = Get-ChildItem $targetFile.Directory | Where-Object {$_.Extension -eq ".class"}
+        foreach ($f in $files) {
+            $f.Delete()
+        }
 
-    # After 1 second, delete all class files in case something in the background is still using them
-    Start-Sleep -Seconds 1
-    $files = Get-ChildItem $targetFile.Directory | Where-Object {$_.Extension -eq ".class"}
-    foreach ($f in $files) {
-        $f.Delete()
-    }
-
-    # And then delete the java files that were copied into the directory from $depFiles
-    foreach ($name in $depNames) {
-        Remove-Item $name -Force
+        # And then delete the java files that were copied into the directory from $depFiles
+        foreach ($name in $depNames) {
+            Remove-Item $name -Force
+        }
     }
 }
 # If we're working with a TypeScript file...
 elseif ($ext -eq "ts") {
     Set-Location $targetFile.DirectoryName
+    try {
+        # tsc won't allow us to transpile all files using a wildcard (e.g., *.ts), so we need to specify
+        # all target files explicitly.
 
-    # tsc won't allow us to transpile all files using a wildcard (e.g., *.ts), so we need to specify
-    # all target files explicitly.
+        Get-ChildItem $targetFile.Directory | Where-Object {$_.Extension -eq ".ts"} | ForEach-Object {
+            tsc $_ --target esnext
+        }
 
-    Get-ChildItem $targetFile.Directory | Where-Object {$_.Extension -eq ".ts"} | ForEach-Object {
-        tsc $_ --target esnext
+        # Then, run the target file in JS form
+        node $targetFile.Name.Split('.')[0] + ".js"
     }
+    finally {
+        # Then, clean up the transpiled JavaScript files
+        $jsFiles = Get-ChildItem $targetFile.Directory | Where-Object {$_.Extension -eq ".js"}
 
-    # Then, run the target file in JS form
-    node $targetFile.Name.Split('.')[0] + ".js"
+        Start-Sleep -Seconds 1
+        foreach ($f in $jsFiles) {
+            $f.Delete()
+        }
 
-    # Then, clean up the transpiled JavaScript files
-    $jsFiles = Get-ChildItem $targetFile.Directory | Where-Object {$_.Extension -eq ".js"}
-
-    Start-Sleep -Seconds 1
-    foreach ($f in $jsFiles) {
-        $f.Delete()
+        Set-Location ..
     }
-
-    Set-Location ..
 }
 # If we're working with a JavaScript file...
 elseif ($ext -eq "js") {
     Set-Location $targetFile.DirectoryName
-    node $targetFile.Name
-    Set-Location ..
+    try {
+        node $targetFile.Name
+    }
+    finally {
+        Set-Location ..
+    }
 } 
 else {
     Write-Host "Unsupported file type: $ext"
