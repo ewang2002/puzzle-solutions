@@ -1,3 +1,4 @@
+use num_traits::PrimInt;
 use std::{
     cmp::{max, min},
     fmt::Display,
@@ -5,14 +6,20 @@ use std::{
 
 /// Represents the interval `[low, high]`, where each element in the
 /// interval is an integer.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct IntInterval {
-    low: isize,
-    high: isize,
+#[derive(PartialEq, Eq, Debug)]
+pub struct IntInterval<N>
+where
+    N: PrimInt,
+{
+    low: N,
+    high: N,
 }
 
-impl IntInterval {
-    /// Creates a new interval interval representing `[low, high]`.
+impl<N> IntInterval<N>
+where
+    N: PrimInt,
+{
+    /// Creates a new interval representing `[low, high]`.
     ///
     /// # Parameters
     /// - `low`: The lower-bound of the interval.
@@ -20,7 +27,18 @@ impl IntInterval {
     ///
     /// # Returns
     /// The interval.
-    pub fn new(low: isize, high: isize) -> IntInterval {
+    pub fn new(low: N, high: N) -> IntInterval<N> {
+        IntInterval { low, high }
+    }
+
+    /// Creates a new interval representing `[low, high]` via a tuple.
+    ///
+    /// # Parameters
+    /// - `(low, high)`: The tuple.
+    ///
+    /// # Returns
+    /// The interval.
+    pub fn from_tuple((low, high): (N, N)) -> IntInterval<N> {
         IntInterval { low, high }
     }
 
@@ -32,7 +50,8 @@ impl IntInterval {
         if self.low > self.high {
             0
         } else {
-            (self.high - self.low + 1) as usize
+            // This should be safe since we've checked that low > high
+            (self.high - self.low + N::one()).to_usize().unwrap()
         }
     }
 
@@ -51,7 +70,7 @@ impl IntInterval {
     ///
     /// # Returns
     /// `true` if the value is in the interval, `false` otherwise.
-    pub fn contains(&self, val: isize) -> bool {
+    pub fn contains(&self, val: N) -> bool {
         (self.low..=self.high).contains(&val)
     }
 
@@ -62,14 +81,14 @@ impl IntInterval {
     ///
     /// # Returns
     /// The interval, if merging is possible. Otherwise, `None` is returned.
-    pub fn merge(&self, other: &IntInterval) -> Option<IntInterval> {
+    pub fn merge(&self, other: &IntInterval<N>) -> Option<IntInterval<N>> {
         let ((left_min, left_max), (right_min, right_max)) = if self.low <= other.low {
             ((self.low, self.high), (other.low, other.high))
         } else {
             ((other.low, other.high), (self.low, self.high))
         };
 
-        if left_max + 1 == right_min || left_max >= right_min {
+        if left_max + N::one() == right_min || left_max >= right_min {
             Some(IntInterval::new(
                 min(left_min, right_min),
                 max(left_max, right_max),
@@ -87,7 +106,7 @@ impl IntInterval {
     ///
     /// # Returns
     /// The interval, if intersection is possible. Otherwise, `None` is returned.
-    pub fn intersect(&self, other: &IntInterval) -> Option<IntInterval> {
+    pub fn intersect(&self, other: &IntInterval<N>) -> Option<IntInterval<N>> {
         let start_pt = max(self.low, other.low);
         let end_pt = min(self.high, other.high);
         if start_pt <= end_pt {
@@ -98,7 +117,10 @@ impl IntInterval {
     }
 }
 
-impl Display for IntInterval {
+impl<N> Display for IntInterval<N>
+where
+    N: PrimInt + Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("[{}, {}]", self.low, self.high))
     }
@@ -111,30 +133,47 @@ mod interval_tests {
     #[test]
     fn test_len() {
         let int1 = IntInterval::new(1, 5);
-        let int2 = IntInterval::new(250, 50);
-        let int3 = IntInterval::new(1, 1);
-
         assert_eq!(5, int1.len());
+
+        let int2 = IntInterval::new(250, 50);
         assert_eq!(0, int2.len());
+
+        let int3 = IntInterval::new(1, 1);
         assert_eq!(1, int3.len());
+
+        let int4 = IntInterval::new(-5, -2);
+        assert_eq!(4, int4.len());
+
+        let int5 = IntInterval::new(-2, 2);
+        assert_eq!(5, int5.len());
+
+        let int6 = IntInterval::new(2, -2);
+        assert_eq!(0, int6.len());
     }
 
     #[test]
     fn test_contains() {
         let int1 = IntInterval::new(50, 250);
-        let int2 = IntInterval::new(250, 50);
-
         assert!(int1.contains(50));
         assert!(int1.contains(250));
         assert!(int1.contains(66));
         assert!(!int1.contains(49));
         assert!(!int1.contains(251));
 
+        let int2 = IntInterval::new(250, 50);
         assert!(!int2.contains(50));
         assert!(!int2.contains(250));
         assert!(!int2.contains(66));
         assert!(!int2.contains(49));
         assert!(!int2.contains(251));
+
+        let int3 = IntInterval::new(-15, 15);
+        assert!(int3.contains(-15));
+        assert!(int3.contains(15));
+        assert!(int3.contains(10));
+        assert!(int3.contains(0));
+        assert!(!int3.contains(-16));
+        assert!(!int3.contains(16));
     }
 
     #[test]
