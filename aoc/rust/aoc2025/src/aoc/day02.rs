@@ -61,9 +61,7 @@ impl AoCProblem for Day02 {
 
         self.product_id_ranges
             .iter()
-            .map(|(min, max)| (*min..=*max)
-                .filter(|n| is_invalid_id(*n))
-                .sum::<usize>())
+            .map(|(min, max)| (*min..=*max).filter(|n| is_invalid_id(*n)).sum::<usize>())
             .sum::<usize>()
             .into()
     }
